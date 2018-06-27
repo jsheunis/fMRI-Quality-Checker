@@ -19,20 +19,20 @@ CURRENT QC MEASURES (27/06/2018):
 - The Plot (GM, WM and CSF voxel intensities over time)
 
 INPUT:
-funcional4D_fn     - filename of 4D functional timeseries (.nii only)
-structural_fn      - filename of T1-weighted structural scan (.nii only)
-fwhm               - kernel size for smoothing operations (mm)
-spm_dir            - SPM12 directory
-out_dir            - output directory (for figures and html logfile)
-subject            - subject name/code
+- funcional4D_fn: filename of 4D functional timeseries (.nii only)
+- structural_fn: filename of T1-weighted structural scan (.nii only)
+- fwhm: kernel size for smoothing operations (mm)
+- spm_dir: SPM12 directory
+- out_dir: output directory (for figures and html logfile)
+- subject: subject name/code
 
 OUTPUT:
-Matlab figures:   - timeseries plots (FD, DVARS, Zscore, The Plot)
-                  - montage images (tSNR, tSNR brain, stddev, mean EPI)
-                  - coregistration contour plot
-HTML logfile:     - HTML logfile with measures and figures and metadata
+- Matlab figure: timeseries plots (FD, DVARS, Zscore, The Plot)
+- Matlab figures: montage images (tSNR, tSNR brain, stddev, mean EPI)
+- Matlab figure: coregistration contour plot
+- HTML logfile: HTML logfile with measures and figures and metadata
 
 SOURCES:
-PCP-QAP:          - http://preprocessed-connectomes-project.org/quality-assessment-protocol/index.html
-MRIQC:            - https://mriqc.readthedocs.io/en/latest/
-The Plot:         - https://www.sciencedirect.com/science/article/pii/S1053811916303871?via%3Dihub
+- PCP-QAP: http://preprocessed-connectomes-project.org/quality-assessment-protocol/index.html
+- MRIQC: https://mriqc.readthedocs.io/en/latest/
+- The Plot: https://www.sciencedirect.com/science/article/pii/S1053811916303871?via%3Dihub
