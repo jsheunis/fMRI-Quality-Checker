@@ -1,22 +1,23 @@
 function output = standardPreproc(functional4D_fn, structural_fn, fwhm, spm_dir)
 % Function to complete preprocessing of structural and functional data from
-% a single subject for use in any other script.
+% a single subject for use in any other Matlab/SPM12 script.
 
 % Steps include coregistering structural image to first functional image,
 % segmenting the coregistered structural image into tissue types, and
 % reslicing the segments to the functional resolution image grid. 
-% Makes use of spm12 batch routines. 
-% If spm12 batch parameters are not explicitly set, defaults are assumed.
+% Makes use of spm12 batch routines. If spm12 batch parameters are not
+% explicitly set, defaults are assumed. 
 %
 % INPUT:
 % funcional4D_fn     - filename of pre-real-time functional scan
 % structural_fn      - filename of T1-weighted structural scan
 % fwhm               - kernel size for smoothing operations
+% spm_dir            - SPM12 directory location
 % 
 % OUTPUT: 
 % output            - structure with filenames and data
 %__________________________________________________________________________
-% Copyright (C) Stephan Heunis
+% Copyright (C) Stephan Heunis 2018
 
 % Load data
 f4D_img = spm_read_vols(spm_vol(functional4D_fn));
@@ -25,7 +26,7 @@ f4D_img = spm_read_vols(spm_vol(functional4D_fn));
 output = struct;
 
 % STEP 1 -- Realign (estimate and reslice) all functionals to first functional
-disp('Step 1...');
+disp('Step 1 -- Realign all volumes to first functional volume');
 realign_estimate_reslice = struct;
 % Data
 fnms={};
@@ -55,34 +56,25 @@ output.mp_fn = [d filesep 'rp_' f '.txt'];
 output.MP = load(output.mp_fn);
 disp('Step 1 - Done!');
 
-
 % STEP 2 -- Coregister structural image to first dynamic image (estimate only)
-disp('Step 2...');
+disp('Step 2 -- Coregister structural image to first dynamic image');
 coreg_estimate = struct;
 % Ref
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.ref = {[functional4D_fn ',1']};
 % Source
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.source = {structural_fn};
-% % Other
-% coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estwrite.other = {};
 % Eoptions
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.eoptions.cost_fun = 'nmi';
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.eoptions.sep = [4 2];
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
 coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estimate.eoptions.fwhm = [7 7];
-% % Roptions
-% coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 4;
-% coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
-% coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
-% coreg_estimate.matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
 % Run
 cfg_util('run',coreg_estimate.matlabbatch);
 disp('Step 2 - Done!');
 
-
 % STEP 3 -- Segmentation of coregistered structural image into GM, WM, CSF, etc
 % (with implicit warping to MNI space, saving forward and inverse transformations)
-disp('Step 3...');
+disp('Step 3 -- Segmentation');
 segmentation = struct;
 % Channel
 segmentation.matlabbatch{1}.spm.spatial.preproc.channel.biasreg = 0.001;
@@ -121,7 +113,7 @@ output.air_fn = [d filesep 'c6' f e];
 disp('Step 3 - done!');
 
 % STEP 4 -- Reslice all to functional-resolution image grid
-disp('Step 4...');
+disp('Step 4 -- Reslice all to functional-resolution image grid');
 reslice = struct;
 % Ref
 reslice.matlabbatch{1}.spm.spatial.coreg.write.ref = {[functional4D_fn ',1']};
@@ -140,7 +132,6 @@ reslice.matlabbatch{1}.spm.spatial.coreg.write.roptions.prefix = 'r';
 % Run
 cfg_util('run',reslice.matlabbatch);
 % Save filenames
-
 [d, f, e] = fileparts(structural_fn);
 output.rstructural_fn = [d filesep 'r' f e];
 output.rgm_fn = [d filesep 'rc1' f e];
@@ -151,9 +142,8 @@ output.rsoft_fn = [d filesep 'rc5' f e];
 output.rair_fn = [d filesep 'rc6' f e];
 disp('Step 4 - done!');
 
-
 % STEP 5 -- Gaussian kernel smoothing of realigned data
-disp('Step 5...');
+disp('STEP 5 -- Gaussian kernel smoothing of realigned data');
 smooth = struct;
 % Data
 fns={};
@@ -172,9 +162,8 @@ cfg_util('run',smooth.matlabbatch);
 output.srfunctional_fn = [d filesep 's' f e];
 disp('Step 5 - done!');
 
-
 % STEP 6 -- Gaussian kernel smoothing of unprocessed data
-disp('Step 6...');
+disp('Step 6 -- Gaussian kernel smoothing of unprocessed data');
 smooth = struct;
 % Data
 fns={};

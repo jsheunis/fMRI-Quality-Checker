@@ -1,38 +1,64 @@
-% function output = calculateQCmeasures(functional4D_fn, structural_fn, fwhm, spm_dir)
+function calculateQCmeasures(functional4D_fn, structural_fn, fwhm, spm_dir, out_dir, subject)
+
+% NOTE: THIS TOOL IS UNDER CONTINUOUS DEVELOPMENT AND HAS NOT BEEN SUFFCIENTLY TESTED
+
 % Function to calculate multiple quality control measures for an fMRI time
-% series.
-% Steps include preprocessing the raw fMRI and structural data
+% series using SPM12 and Matlab. The goal is to create a tool, for use by
+% fMRI technicians/researchers/clinicians familiar with SPM12 and Matlab,
+% that allows the calculation of measures that can assist in diagnosing
+% quality issues in fMRI data. It is not intended for use as ground truth
+% for quality diagnosis, as these measures are known to be relative and to
+% vary based on scanner site, acquisition time, data format, and more.
+% However, it can provide insight into possible data quality issues
+% originating from the scanner or single subject.
+
+% Function steps include preprocessing the acquired fMRI and structural data
 % (coregistering structural image to first functional image, segmenting the
 % coregistered structural image into tissue types, and reslicing the
 % segments to the functional resolution image grid), and calling functions
-% for standard set of QC measures based on various sources (including
-% mainly PC-QAP. Makes use of spm12 batch routines.
-% If spm12 batch parameters are not explicitly set, defaults are assumed.
+% for a standard set of QC measures based on various sources (mainly
+% including the Quality Assessment Protocol (QAP) from the Preprocessed
+% Connectomes Project (PCP) and MRIQC. This function makes use of SPM12
+% functions and batch routines. If SPM12 batch parameters are not
+% explicitly set, defaults are assumed. 
+% 
+% CURRENT QC MEASURES (27/06/2018):
+% - Temporal signal to noise ratio (tSNR) (3D image)
+% - Mean tSNR of brain, grey matter, white matter, and CSF
+% - Z-score timeseries and mean
+% - Standard deviation (3D image)
+% - Framewise displacement (FD) timeseries, total and mean (mm)
+% - Non-standardized differential variance (DVARS) timeseries (a.u.)
+% - The Plot (GM, WM and CSF voxel intensities over time)
 %
 % INPUT:
-% funcional4D_fn     - filename of pre-real-time functional scan
-% structural_fn      - filename of T1-weighted structural scan
-% fwhm               - kernel size for smoothing operations
+% funcional4D_fn     - filename of 4D functional timeseries (.nii only)
+% structural_fn      - filename of T1-weighted structural scan (.nii only)
+% fwhm               - kernel size for smoothing operations (mm)
+% spm_dir            - SPM12 directory
+% out_dir            - output directory (for figures and html logfile)
+% subject            - subject name/code
 %
 % OUTPUT:
-% output            - structure with filenames and data
+% Matlab figures:   - timeseries plots (FD, DVARS, Zscore, The Plot)
+%                   - montage images (tSNR, tSNR brain, stddev, mean EPI)
+%                   - coregistration contour plot
+% HTML logfile:     - HTML logfile with measures and figures and metadata
+%
+% SOURCES:
+% PCP-QAP:          - http://preprocessed-connectomes-project.org/quality-assessment-protocol/index.html
+% MRIQC:            - https://mriqc.readthedocs.io/en/latest/
+% The Plot:         - https://www.sciencedirect.com/science/article/pii/S1053811916303871?via%3Dihub
 %__________________________________________________________________________
 % Copyright (C) Stephan Heunis 2018
 
 
 % User defined variables
 % -------------------------------------------------------------------------
-% data_dir = '/Users/jheunis/Documents/MATLAB/rt_fMRI/Data/Rolf finger tapping'; % e.g. '/users/me/matlab/data/subj1'
-% functional4D_fn = [data_dir filesep 'real_time_fMRI_WIP_FE_EPI_tapping_SENSE_12_1.nii']; % e.g. [data_dir filesep 'rest.nii']
-% structural_fn = [data_dir filesep 'real_time_fMRI_WIP_T1W_3D_TFE_SENSE_7_1.nii']; % e.g. [data_dir filesep 'mprage.nii']
-subject = '0051210';
-data_dir = '/Users/jheunis/Documents/MATLAB/rtqc_jsh/rtqc_data/0051210'; % e.g. '/users/me/matlab/data/subj1'
-functional4D_fn = [data_dir filesep 'rest_1/rest.nii']; % e.g. [data_dir filesep 'rest.nii']
-structural_fn = [data_dir filesep 'anat_1/mprage.nii']; % e.g. [data_dir filesep 'mprage.nii']
-spm_dir = '/Users/jheunis/Documents/MATLAB/spm12'; % e.g. '/users/me/matlab/spm12'
-fwhm = 6; % for preprocessing smoothing steps
 intensity_scale = [-6 6]; % scaling for plot image intensity, see what works
+FD_threshold = 1; % mm
 % -------------------------------------------------------------------------
+cd(out_dir)
 
 % Get image information
 func_spm = spm_vol(functional4D_fn);
@@ -105,14 +131,13 @@ F2D_psc(isnan(F2D_psc))=0;
 
 % Framewise displacement
 r = 50; % mm
-FD_threshold = 1; % mm
 FD_measures = calculateFD(preproc_data.MP, r, FD_threshold);
 
 % DVARS
 F2D_diff = [zeros(1, Ni*Nj*Nk); diff(F2D_detrended')]';
 DVARS = var(F2D_diff);
 
-% The plot (with FD, DVARS, and mean Zscore per volume)
+% The Plot (with FD, DVARS, and mean Zscore per volume)
 GM_img = F2D_psc(I_GM, :);
 WM_img = F2D_psc(I_WM, :);
 CSF_img = F2D_psc(I_CSF, :);
@@ -154,7 +179,7 @@ tSNR_GM = mean(tSNR_2D(I_GM));
 tSNR_WM = mean(tSNR_2D(I_WM));
 tSNR_CSF = mean(tSNR_2D(I_CSF));
 
-% Metrics
+% Display metrics in command window
 disp(['Number of volumes classified as outliers based on FD>=' num2str(FD_threshold) 'mm: ' num2str(numel(FD_measures.FD_outliers_ind))])
 disp(['Total FD: ' num2str(FD_measures.FD_sum)])
 disp(['Mean FD: ' num2str(FD_measures.FD_mean)])
@@ -164,20 +189,17 @@ disp(['tSNR (GM): ' num2str(tSNR_GM)])
 disp(['tSNR (WM): ' num2str(tSNR_WM)])
 disp(['tSNR (CSF): ' num2str(tSNR_CSF)])
 
-% 3D and 4D images
+% Prepare 3D and 4D images
 mask_3D = reshape(mask_reshaped, Ni, Nj, Nk);
 tSNR_3D = reshape(tSNR_2D, Ni, Nj, Nk);
 F3D_mean = reshape(F2D_mean, Ni, Nj, Nk);
 F3D_var = reshape(F2D_var, Ni, Nj, Nk);
 F3D_stddev = reshape(F2D_stddev, Ni, Nj, Nk);
-
-% montage3 = createMontage(F3D_var, 5, 1, 'Variance (whole image)');
-
-
 tSNR_2D_masked = zeros(Ni*Nj*Nk, 1);
 tSNR_2D_masked(I_mask, :) = tSNR_2D(I_mask, :);
 tSNR_3D_masked = reshape(tSNR_2D_masked, Ni, Nj, Nk);
 
+% Create montages of 3D images
 montage2 = createMontage(F3D_mean, 5, 1, 'Mean EPI (whole image)', 'gray');
 print(montage2.f, 'mean_epi', '-dpng')
 montage3 = createMontage(F3D_stddev, 5, 1, 'Standard deviation (whole image)', 'parula');
@@ -189,30 +211,17 @@ print(montage4.f, 'tsnr_brain', '-dpng')
 figmask = displayMaskContour(F3D_mean, mask_3D, 0, 3);
 print(figmask, 'mask_contour', '-dpng')
 
+% Create HTML log file
+dt = datetime('now');
+[Y,MO,D,H,MI,S] = datevec(dt);
+dt_str = [num2str(Y) num2str(MO) num2str(D) num2str(H) num2str(MI) num2str(round(S))];
+t = datestr(dt);
 
-
-% F2D_mean_masked = zeros(Ni*Nj*Nk, 1);
-% F2D_mean_masked(I_mask, :) = F2D_mean(I_mask, :);
-% F3D_mean_masked = reshape(F2D_mean_masked, Ni, Nj, Nk);
-% montage5 = createMontage(F3D_mean_masked, 5, 1, 'Mean EPI (brain)');
-
-% F2D_var_masked = zeros(Ni*Nj*Nk, 1);
-% F2D_var_masked(I_mask, :) = F2D_var(I_mask, :);
-% F3D_var_masked = reshape(F2D_var_masked, Ni, Nj, Nk);
-% montage6 = createMontage(F3D_var_masked, 5, 1, 'Variance (brain)');
-
-% F2D_stddev_masked = zeros(Ni*Nj*Nk, 1);
-% F2D_stddev_masked(I_mask, :) = F2D_stddev(I_mask, :);
-% F3D_stddev_masked = reshape(F2D_stddev_masked, Ni, Nj, Nk);
-% montage7 = createMontage(F3D_stddev_masked, 5, 1, 'Standard deviation (brain)');
-
-% Create html log file
-log_nr = 5;
-log_name = [subject '_log' num2str(log_nr) '.html'];
+log_name = [subject '_' dt_str '.html'];
 fid = fopen(log_name,'a');
 fprintf(fid, '<H2>Log</H2>');
 fprintf(fid, ['\n<BR>Subject:  ' subject]);
-t = datestr(datetime('now'));
+
 fprintf(fid, ['\n<BR>Date/time:  ' t]);
 
 fprintf(fid, '<H2>Imaging info</H2>');
