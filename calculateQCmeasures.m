@@ -28,6 +28,7 @@ function calculateQCmeasures(functional4D_fn, structural_fn, fwhm, spm_dir, out_
 % - Z-score timeseries and mean
 % - Standard deviation (3D image)
 % - Framewise displacement (FD) timeseries, total and mean (mm)
+% - GCOR = global correlation ....
 % - Non-standardized differential variance (DVARS) timeseries (a.u.)
 % - The Plot (GM, WM and CSF voxel intensities over time)
 %
@@ -56,7 +57,7 @@ function calculateQCmeasures(functional4D_fn, structural_fn, fwhm, spm_dir, out_
 % User defined variables
 % -------------------------------------------------------------------------
 intensity_scale = [-6 6]; % scaling for plot image intensity, see what works
-FD_threshold = 1; % mm
+FD_threshold = 0.2; % mm
 % -------------------------------------------------------------------------
 cd(out_dir)
 
@@ -115,8 +116,9 @@ I_mask = find(mask_reshaped);
 Nmaskvox = numel(I_mask);
 
 % Detrend 4D time series
-F4D_detrended = detrend4D(preproc_data.sfunctional_fn);
-F2D_detrended = reshape(F4D_detrended, Ni*Nj*Nk, Nt);
+output = detrend4D(preproc_data.sfunctional_fn);
+F4D_detrended = output.F4D_detrended;
+F2D_detrended = output.F_2D_detrended;
 
 % Statistical measures
 F2D_mean = mean(F2D_detrended, 2);
@@ -130,12 +132,24 @@ F2D_psc = 100*(F2D_detrended./repmat(F2D_mean, 1, Nt)) - 100;
 F2D_psc(isnan(F2D_psc))=0;
 
 % Framewise displacement
-r = 50; % mm
+r = 80; % mm
 FD_measures = calculateFD(preproc_data.MP, r, FD_threshold);
 
 % DVARS
 F2D_diff = [zeros(1, Ni*Nj*Nk); diff(F2D_detrended')]';
 DVARS = var(F2D_diff);
+
+% GCOR
+% Steps according to https://doi.org/10.1089/brain.2013.0156:
+% (1)?De-mean each voxel's time series and scale it by its Eucledian norm
+% (2)?Average scaled time series over the whole brain mask
+% (3)?GCOR is the length (L2 norm) of this averaged series
+F2D_demeaned = F2D_detrended - F2D_mean;
+F2D_norms = sqrt(sum(F2D_demeaned.^2,2));
+F2D_scaled = F2D_demeaned./F2D_norms;
+F2D_ave_timeseries = mean(F2D_scaled(I_mask,:), 1);
+GCOR = sum(F2D_ave_timeseries.^2,2);
+
 
 % The Plot (with FD, DVARS, and mean Zscore per volume)
 GM_img = F2D_psc(I_GM, :);
@@ -184,6 +198,7 @@ disp(['Number of volumes classified as outliers based on FD>=' num2str(FD_thresh
 disp(['Total FD: ' num2str(FD_measures.FD_sum)])
 disp(['Mean FD: ' num2str(FD_measures.FD_mean)])
 disp(['Mean Zscore: ' num2str(Zstat_mean)])
+disp(['GCOR: ' num2str(GCOR)])
 disp(['tSNR (brain): ' num2str(tSNR_brain)])
 disp(['tSNR (GM): ' num2str(tSNR_GM)])
 disp(['tSNR (WM): ' num2str(tSNR_WM)])
@@ -237,6 +252,7 @@ fprintf(fid, ['\n<BR>FD outliers:  ' num2str(numel(FD_measures.FD_outliers_ind))
 fprintf(fid, ['\n<BR>Total FD:  ' num2str(FD_measures.FD_sum)]);
 fprintf(fid, ['\n<BR>Mean FD:  ' num2str(FD_measures.FD_mean)]);
 fprintf(fid, ['\n<BR>Mean Zscore:  ' num2str(Zstat_mean)]);
+fprintf(fid, ['\n<BR>GCOR:  ' num2str(GCOR)]);
 fprintf(fid, ['\n<BR>tSNR (brain):  ' num2str(tSNR_brain)]);
 fprintf(fid, ['\n<BR>tSNR (GM):  ' num2str(tSNR_GM)]);
 fprintf(fid, ['\n<BR>tSNR (WM):  ' num2str(tSNR_WM)]);

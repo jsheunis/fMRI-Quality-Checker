@@ -13,6 +13,7 @@ CURRENT QC MEASURES (27/06/2018):
 - Temporal signal to noise ratio (tSNR) (3D image)
 - Mean tSNR of brain, grey matter, white matter, and CSF
 - Z-score timeseries and mean
+- Global correlation (GCOR)
 - Standard deviation (3D image)
 - Framewise displacement (FD) timeseries, total and mean (mm)
 - Non-standardized differential variance (DVARS) timeseries (a.u.)

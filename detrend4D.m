@@ -1,4 +1,4 @@
-function F4D_detrended = detrend4D(functional4D_fn)
+function output = detrend4D(functional4D_fn)
 % Function to detrend 4D fMRI data
 %
 % INPUT:
@@ -28,7 +28,10 @@ betas = X_design\F_2D';
 F_2D_detrended = F_2D' - X_design(:, 1:(end-1))*betas(1:(end-1), :);
 F_2D_detrended = F_2D_detrended';
 
-% Output in 4D matrix
+% 4D matrix
 F4D_detrended = reshape(F_2D_detrended, Ni, Nj, Nk, Nt);
 
+% Output
+output.F_2D_detrended = F_2D_detrended;
+output.F4D_detrended = F4D_detrended;
 
