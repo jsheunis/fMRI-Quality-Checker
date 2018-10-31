@@ -11,9 +11,17 @@ function output = detrend4D(functional4D_fn)
 
 
 % Get file info and convert 4D to 2D
-F_4D = spm_read_vols(spm_vol(functional4D_fn));
-[Ni, Nj, Nk, Nt] = size(F_4D);
-F_2D = reshape(F_4D, Ni*Nj*Nk, Nt);
+
+V = spm_vol(functional4D_fn);
+V1_3D = spm_read_vols(V(1));
+sizeV = size(V);
+[Ni, Nj, Nk] = size(V1_3D);
+Nt = sizeV(1);
+
+[x,y,z] = ind2sub(size(V1_3D),(1:Ni*Nj*Nk)');
+dataT = spm_get_data(V,[x y z]');
+F_2D = dataT';
+F_4D = reshape(F_2D, Ni, Nj, Nk, Nt);
 
 % Setup design matrix to include demeaned 1st, 2nd and 3rd order
 % polynomial and single mean regressors

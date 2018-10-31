@@ -59,6 +59,9 @@ function calculateQCmeasures(functional4D_fn, structural_fn, fwhm, spm_dir, out_
 intensity_scale = [-6 6]; % scaling for plot image intensity, see what works
 FD_threshold = 0.2; % mm
 % -------------------------------------------------------------------------
+if ~exist(out_dir, 'dir')
+    mkdir(out_dir)
+end
 cd(out_dir)
 
 % Get image information
@@ -106,7 +109,7 @@ else
 end
 
 % Calculate brain mask matrices for GM, WM, CSF, and all together
-mask_threshold = 0.1;
+mask_threshold = 0.5;
 [GM_img_bin, WM_img_bin, CSF_img_bin] = createBinarySegments(preproc_data.rgm_fn, preproc_data.rwm_fn, preproc_data.rcsf_fn, mask_threshold);
 I_GM = find(GM_img_bin);
 I_WM = find(WM_img_bin);
@@ -116,7 +119,7 @@ I_mask = find(mask_reshaped);
 Nmaskvox = numel(I_mask);
 
 % Detrend 4D time series
-output = detrend4D(preproc_data.sfunctional_fn);
+output = detrend4D(functional4D_fn);
 F4D_detrended = output.F4D_detrended;
 F2D_detrended = output.F_2D_detrended;
 
